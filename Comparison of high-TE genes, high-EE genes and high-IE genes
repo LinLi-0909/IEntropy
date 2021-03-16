@@ -1,0 +1,66 @@
+library(Seurat)
+library(mclust)
+library(M3Drop)
+library(rsvd)
+library(tibble)
+library(magrittr)
+library(ROGUE)
+source('../PCA_entropy/pca_entropy.R')
+##type
+sce <- readRDS('/variation_information/type.RDS')
+##########IE TE EE
+int_res <- Get_entropy(data,5,0.1)
+dim(int_res)
+TE <- int_res[order(int_res$entropy_tot,decreasing = T),]
+EE <- int_res[order(int_res$entropy_ext,decreasing = T),]
+g1 <- as.character(int_res$Gene[1:100])
+g2 <- as.character(TE$Gene[1:100])
+g3 <- as.character(EE$Gene[1:100])
+head(g1)
+sce <- RunPCA(sce, features = g3)
+sce <- FindNeighbors(sce, dims = 1:15)
+sce <- RunTSNE(sce,dims = 1:15)
+DimPlot(sce,group.by = 'cluster',reduction = 'tsne')
+sce <- FindClusters(sce,resolution = 0.4)
+adjustedRandIndex(sce$seurat_clusters,sce$cluster)#IE: 0.9664653 TE :0.75 EE:0.72
+
+###time
+
+sce <- readRDS('/variation_information/time/time.rds')
+data <- GetAssayData(sce,slot = 'data')
+int_res <- Get_entropy(data,1,0.15)
+dim(int_res)
+TE <- int_res[order(int_res$entropy_tot,decreasing = T),]
+EE <- int_res[order(int_res$entropy_ext,decreasing = T),]
+g1 <- as.character(int_res$Gene[1:200])
+g2 <- as.character(TE$Gene[1:200])
+g3 <- as.character(EE$Gene[1:200])
+head(g1)
+sce <- RunPCA(sce, features = g1)
+sce <- FindNeighbors(sce, dims = 1:10)
+sce <- RunTSNE(sce,dims = 1:10,check_duplicates = F)
+DimPlot(sce,group.by = 'cluster',reduction = 'tsne',pt.size = 1.2)
+sce <- FindClusters(sce,resolution = 0.6)
+adjustedRandIndex(sce$seurat_clusters,sce$cluster)#IE: 0.7881213 TE :0.7393307 EE: 0.4027845
+
+###
+load('../TE_EE/facs_Tongue_seurat_tiss.Robj')
+sce <- UpdateSeuratObject(tiss)
+sce$cluster <- sce$free_annotation
+data <- GetAssayData(sce,slot = 'data')
+int_res <- Get_entropy(data,1,0.1)
+dim(int_res)
+TE <- int_res[order(int_res$entropy_tot,decreasing = T),]
+EE <- int_res[order(int_res$entropy_ext,decreasing = T),]
+g1 <- as.character(int_res$Gene[1:100])
+g2 <- as.character(TE$Gene[1:100])
+g3 <- as.character(EE$Gene[1:100])
+head(g1)
+sce <- RunPCA(sce, features = g2)
+sce <- FindNeighbors(sce, dims = 1:10)
+sce <- RunTSNE(sce,dims = 1:10,check_duplicates = F)
+DimPlot(sce,group.by = 'cluster',reduction = 'tsne',pt.size = 2)
+sce <- FindClusters(sce,resolution = 0.4)
+adjustedRandIndex(sce$seurat_clusters,sce$cluster)#IE: 0.565242 TE :0.4448381 EE: 0.2073516
+
+

@@ -1,0 +1,62 @@
+## Simulation
+#library
+library(dplyr)
+library(Matrix)
+library(SingleCellExperiment);
+library(tibble);
+library(Seurat);
+library(ROCR);
+library(cluster);
+library(mclust)
+library(M3Drop)
+library(magrittr)
+library(rprintf)
+source('../PCA_entropy/pca_entropy.R')
+#droplet-based data
+
+
+library(splatter)
+library(SIMLR)
+library(igraph)
+library(M3Drop)
+library(tibble)
+library(rprintf)
+library(scater)
+library(rsvd)
+source('Rogue.R')
+source('pca_entropy.R')
+
+n_gene=500 
+n_iter = 20
+ARI_c <- matrix(NA,ncol = 5,nrow = n_iter)
+colnames(ARI_c) <- c('random','IE','SE','HVG','seed')
+ARI_c <- as.data.frame(ARI_c)
+for(i in 1:n_iter)
+{
+cat(sprintf(" Performing the %s iteration", i))
+seed <- ceiling(runif(1,min = 1, max = 1000000))
+ARI_c[i,5] <- seed
+sim <- splatSimulate(group.prob=c(0.05,0.15,0.2,0.2,0.4),method = 'group',verbose = F,
+                     nGenes=20000,batchCells=500,seed = seed )
+group <- sim$Group
+count <- counts(sim)               
+data <- count/colSums(count)*10000
+s1 <- sample(rownames(data),n_gene)
+ent_res <- SE_fun(count,r=0.001)
+int_res <- Get_entropy(data,5,0.1)
+m <- nrow(int_res)
+cat(sprintf(" the number of int genes is %s \n", m))
+
+HVG_res <- BrenneckeGetVariableGenes(count,fdr = 1.2,suppress.plot=TRUE)
+s2 <- as.character(int_res$Gene[1:n_gene])
+s3 <- as.character(ent_res$Gene[1:n_gene])
+s4 <- as.character(HVG_res$Gene[1:n_gene])
+simlr1 <- SIMLR_Large_Scale(data[rownames(data)%in%s1,], c = 5)
+simlr2 <- SIMLR_Large_Scale(data[rownames(data)%in%s2,], c = 5)
+simlr3 <- SIMLR_Large_Scale(data[rownames(data)%in%s3,], c = 5)
+simlr4 <- SIMLR_Large_Scale(data[rownames(data)%in%s4,], c = 5)
+ARI_c[i,1] <- compare(simlr1$y$cluster,group,method = 'adjusted.rand')
+ARI_c[i,2] <- compare(simlr2$y$cluster,group,method = 'adjusted.rand')
+ARI_c[i,3] <- compare(simlr3$y$cluster,group,method = 'adjusted.rand')
+ARI_c[i,4] <- compare(simlr4$y$cluster,group,method = 'adjusted.rand')
+}

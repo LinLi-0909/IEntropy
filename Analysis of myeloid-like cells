@@ -1,0 +1,121 @@
+library(Seurat)
+library(dplyr)
+library(rsvd)
+source("pca_entropy.R")
+
+# deal with the original .Rds
+load("loom/Myeloid.Cellview.Rds")
+info<-read.csv("loom/Myeloid_info.csv",header = T,row.names = 1)
+head(info)
+featuredata$rown<-rownames(featuredata)
+gene <- data.frame(rown=featuredata$rown,name=featuredata$Associated.Gene.Name)
+log2cpm$rown<-rownames(log2cpm)
+data <- merge(gene,log2cpm,all=F)
+rownames(data)<-data$name
+data<-data[,-c(1,2)]
+head(data[,1:5])
+rm(featuredata,gene,log2cpm,tsne.data,data)
+
+# create seurat object and ie feature selection and run PCA
+msce<-CreateSeuratObject(data,min.cells = 10,min.features = 600,
+                         project = "lung.tumor",meta.data =info)
+msce# 14750  8172
+msce@assays$RNA@scale.data<-as.matrix(msce@assays$RNA@data)
+head(msce@meta.data)
+saveRDS(msce,"myeloid.rds")
+
+data<-GetAssayData(msce,slot = 'data')
+dim(data)
+int_res <- Get_entropy(data,1,min_exp = 0.01)# 1 0.01
+dim(int_res)# 10646     2
+s <- as.character(int_res$Gene[1:3000])
+msce <- RunPCA(msce, features = s)
+ElbowPlot(msce)
+msce <- FindNeighbors(msce, dims = 1:10)
+msce <- FindClusters(msce,algorithm = 2,resolution = 0.8)#0.35
+# msce <- RunTSNE(msce,dims = 1:10)
+msce <- RunUMAP(msce,dims = 1:10)
+DimPlot(msce,pt.size=0.8,label = T,label.size = 8)
+DimPlot(msce,cols = c("dodgerblue2","#FF4500"),pt.size=0.8,group.by ="CellFromTumor")
+DimPlot(msce,pt.size=0.8,group.by ="ClusterName")
+DimPlot(msce,pt.size=0.8,group.by ="dbCluster")
+
+msce.marker<-FindAllMarkers(msce,only.pos = TRUE, logfc.threshold = 0.5)
+
+top50 <- msce.marker %>% 
+  dplyr::mutate(cluster = as.character(cluster)) %>%
+  group_by(cluster) %>% top_n(n = 50, wt = avg_logFC)
+top50 <- top50[order(top50$avg_logFC,decreasing = T),]
+write.csv(top50,"msce.marker.top50.csv")
+
+top10 <- msce.marker %>% 
+  dplyr::mutate(cluster = as.character(cluster)) %>%
+  group_by(cluster) %>% top_n(n = 10, wt = avg_logFC) %>% 
+  dplyr::arrange(cluster)
+
+# marker heatmap
+library(pheatmap)
+marker.matr <- function(tmp.sce, gene){
+  
+  matr <- as.matrix(tmp.sce@assays$RNA@scale.data)
+  gene <- intersect(gene, rownames(matr))
+  matr <- matr[gene,]
+  
+  tibble(cluster = as.numeric(unique(Idents(tmp.sce)))-1) %>%
+    dplyr::mutate(
+      expr = purrr::map(
+        .x = cluster,
+        .f = function(.x){
+          tmp.matr <- matr[,Idents(tmp.sce) == .x]
+          rowMeans(tmp.matr)
+        }
+      )
+    ) -> tmp.res
+  
+  matr <- Reduce(rbind, tmp.res$expr)
+  matr <- as.data.frame(matr)
+  rownames(matr) <- paste("M", tmp.res$cluster, sep = "")
+  return(matr)
+}
+top10 <- top10[order(as.numeric(top10$cluster),decreasing = F),]
+pda <- marker.matr(msce, top10$gene)
+pda %>%
+  tibble::rownames_to_column(var = "Cluster") %>%
+  dplyr::mutate_if(is.numeric, funs((. - mean(.))/sd(.))) %>%
+  tidyr::gather(key = "Gene", value = "expr", -Cluster) %>%
+  ggplot(aes(factor(Cluster,levels = c("M0","M1","M2","M3","M4","M5","M6","M7","M8","M9","M10","M11","M12","M13","M14")), factor(Gene, levels = rev(unique(top10$gene))))) +
+  geom_tile(aes(fill = expr)) +
+  theme(strip.text.x = element_blank(), 
+        axis.title = element_text(size = 15), 
+        axis.text = element_text(size = 9), 
+        legend.title = element_text(size = 13), 
+        legend.text = element_text(size = 13), 
+        axis.text.y = element_text(color = "black"), 
+        axis.text.x = element_text(color = "black"), 
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        panel.grid = element_line(colour = "grey", linetype = "dashed"), 
+        panel.grid.major = element_line(colour = "grey", linetype = "dashed", size = 0.2)) + 
+  scale_fill_distiller(palette = "RdBu") + 
+  labs(x = "", y = "") -> marker.heatmap
+marker.heatmap
+
+marker.5.p <- marker.5[order(marker.5$p_val),]
+FeaturePlot(msce,features = marker.5.p$gene[1:16],cols = c("lightgrey","#E00E20"),)
+marker.3.p <- marker.3[order(marker.3$p_val),]
+FeaturePlot(msce, features ="WFDC2",cols = c("lightgrey","#E00E20"))
+FeaturePlot(msce, features ="NBEAL1",min.cutoff = 1,cols = c("lightgrey","#E00E20"))
+
+
+# markers featureplot
+FeaturePlot(msce,features = c("FCER1A","CLEC9A","S100A12","CD163","RGCC","IFITM3"),cols = c("lightgrey","#E00E20"),ncol = 3)
+
+FeaturePlot(msce,features = c("S100A12","LYPD2","CCL20","CD207"),cols = c("lightgrey","#E00E20"))
+FeaturePlot(msce,features = c("FDX1","PLTP","NBEAL1","LPL","IDO1"),
+            min.cutoff = 1,cols = c("lightgrey","#E00E20")) 
+FeaturePlot(msce,features = "IL3RA",min.cutoff = 0.8,cols = c("lightgrey","#E00E20")) 
+FeaturePlot(msce,features = "CXCL10",min.cutoff = 1.5,cols = c("lightgrey","#E00E20"))
+FeaturePlot(msce,features = "CRIP1",min.cutoff = 2,cols = c("lightgrey","#E00E20"))
+FeaturePlot(msce,features = "LMNA",min.cutoff = 2.5,cols = c("lightgrey","#E00E20"))
+FeaturePlot(msce,features = "FOS",min.cutoff = 3,cols = c("lightgrey","#E00E20"))
+FeaturePlot(msce,features = "FTH1",min.cutoff = 6,cols = c("lightgrey","#E00E20"))
+

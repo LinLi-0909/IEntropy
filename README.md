@@ -26,6 +26,7 @@ install.packages("rsvd")
 **Installing IEntropy**  
 To install IEntropy, run:
 ```
+source('Get_entropy.r')
 ```
 
 ## Tutorial

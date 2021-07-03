@@ -9,7 +9,13 @@
 - [Contact](#Contact)
 
 ## Overview
-Here, we proposed the feature selection method, IE model.
+Recent advances of single-cell RNA sequencing (scRNA-seq) technologies have led
+extensive study on cellular heterogeneity and cell-to-cell variation. However, the high
+frequency of dropout events and noise in scRNA-seq data confound the accuracy of the
+downstream analysis, i.e., clustering analysis, whose accuracy depends heavily on the
+selected feature genes.Here, by deriving entropy decomposition formula, we proposed a feature selection
+method, intrinsic entropy (IE) model, to identify the informative genes for accurately
+clustering analysis
 
 ## Installation Guide
 **Installing dependency package**  

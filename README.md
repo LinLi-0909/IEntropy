@@ -3,7 +3,6 @@
 - [Overview](#overview)
 - [Installation Guide](#installation-guide)
 - [Tutorial](#tutorial)
-- [Reproduction instructions](#Reproduction-instructions)
 - [License](./LICENSE)
 - [Citation](#citation)
 - [Contact](#Contact)

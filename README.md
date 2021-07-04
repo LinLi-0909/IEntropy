@@ -25,7 +25,10 @@ install.packages("rsvd")
 **Installing IEntropy**  
 To install IEntropy, run:
 ```
-source('Get_entropy.r')
+install.packages('devtools')
+library(devtools)
+install_github('LinLi-0909/IEntropy/IEntropy')
+library(IEntropy)
 ```
 
 ## Tutorial

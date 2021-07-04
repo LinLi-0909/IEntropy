@@ -1,0 +1,12 @@
+Package: IEntropy
+Type: Package
+Title: The feature selection method, IE model
+Version: 0.1.0
+Author: Lin Li <lilin6@sibcb.ac.cn>
+Maintainer: Lin Li <lilin6@sibcb.ac.cn>
+Description: The package can compute the intrinsic entropy, extrinsic entropy, total entropy based on gene expression data. 
+License: Lin Li (ChenLab)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+
